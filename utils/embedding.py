@@ -133,6 +133,7 @@ def prepare_sentences(model, paths):
         # avoid calling random_sample() where prob >= 1, to speed things up a little:
         sampled = [model.vocab[node] for node in path
                    if node in model.vocab and (model.vocab[node].sample_probability >= 1.0 or model.vocab[node].sample_probability >= np.random.random_sample())]
+        prepare_sentences
         yield sampled
 
 def batch_generator(iterable, batch_size=1):

@@ -76,13 +76,13 @@ def save_community(pi, vocab_t, file_name, path='data'):
     full_path = path_join(path, file_name + '.txt')
     makedirs(dirname(full_path), exist_ok=True)
 
-    K=5
+    K=1
     with open(full_path, 'w') as file:
         for i in range(pi.shape[0]):
             max_idx = np.argpartition(pi[i],-K)[-K:]
             for j in range(len(max_idx)):
-                if float(pi[i][max_idx[j]]) > 0.0:
-                    file.write("{}\t{}\t{}\n".format(vocab_t[i], max_idx[j], pi[i][max_idx[j]]))
+                #if float(pi[i][max_idx[j]]) > 0.0:
+                file.write("{}\t{}\t{}\n".format(vocab_t[i], max_idx[j], pi[i][max_idx[j]]))
         #if isinstance(vocab, dict):
         #    for node_id, node in sorted(vocab.items(), key=lambda x: x[0]):
         #        file.write("{}\t{}\n".format(node_id, " ".join([str(val) for val in embeddings[node.index]])))

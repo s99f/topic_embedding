@@ -21,7 +21,8 @@ class Model(object):
                  seed=1,
                  table_size=100000000,
                  path_labels='data/',
-                 input_file=None):
+                 input_file=None,
+                 walk_files=None):
         '''
         :param nodes_degree: Dict with node_id: degree of node
         :param size: projection space
@@ -51,6 +52,11 @@ class Model(object):
             self.reset_weights()
         else:
             log.warning("Model not initialized, need the nodes degree")
+        
+        if walk_files is not None :
+            self.build_path_table_(walk_files)
+        else:
+            log.warning("Negtive sample does not work well, need connected_path!")
 
     def build_vocab_(self, nodes_degree):
         """
@@ -96,12 +102,16 @@ class Model(object):
         np.random.seed(self.seed)
         self.node_embedding = xavier_normal(size=(self.vocab_size, self.layer1_size), as_type=np.float32)
         self.context_embedding = xavier_normal(size=(self.vocab_size, self.layer1_size), as_type=np.float32)
+        self.w2 = xavier_normal(size=(self.layer1_size, self.layer1_size), as_type=np.float32)
+        #self.node_embedding = np.random.uniform(low=1, high=2, size=(self.vocab_size, self.layer1_size)).astype(
+        #    np.float32)
 
 
         self.centroid = np.zeros((self.k, self.layer1_size), dtype=np.float32)
         self.covariance_mat = np.zeros((self.k, self.layer1_size, self.layer1_size), dtype=np.float32)
         self.inv_covariance_mat = np.zeros((self.k, self.layer1_size, self.layer1_size), dtype=np.float32)
         self.pi = np.zeros((self.vocab_size, self.k), dtype=np.float32)
+        self.probability = np.zeros((self.vocab_size, self.k), dtype=np.float32)
 
     def reset_communities_weights(self, k):
         """Reset all projection weights to an initial (untrained) state, but keep the existing vocabulary."""
@@ -111,6 +121,7 @@ class Model(object):
         self.covariance_mat = np.zeros((self.k, self.layer1_size, self.layer1_size), dtype=np.float32)
         self.inv_covariance_mat = np.zeros((self.k, self.layer1_size, self.layer1_size), dtype=np.float32)
         self.pi = np.zeros((self.vocab_size, self.k), dtype=np.float32)
+        self.probability = np.zeros((self.vocab_size, self.k), dtype=np.float32)
         log.info("reset communities data| k: {}".format(self.k))
 
 
@@ -124,6 +135,7 @@ class Model(object):
         self.covariance_mat = np.zeros((self.k, self.layer1_size, self.layer1_size), dtype=np.float32)
         self.inv_covariance_mat = np.zeros((self.k, self.layer1_size, self.layer1_size), dtype=np.float32)
         self.pi = np.zeros((self.vocab_size, self.k), dtype=np.float32)
+        self.probability = np.zeros((self.vocab_size, self.k), dtype=np.float32)
         log.info("reset communities data| k: {}".format(self.k))
 
     def reset_weight_zero(self):
@@ -136,6 +148,7 @@ class Model(object):
         self.covariance_mat = np.zeros((self.k, self.layer1_size, self.layer1_size), dtype=np.float32)
         self.inv_covariance_mat = np.zeros((self.k, self.layer1_size, self.layer1_size), dtype=np.float32)
         self.pi = np.zeros((self.vocab_size, self.k), dtype=np.float32)
+        self.probability = np.zeros((self.vocab_size, self.k), dtype=np.float32)
         log.info("reset communities data| k: {}".format(self.k))
 
     def make_table(self, power=0.75):
@@ -168,7 +181,27 @@ class Model(object):
 
         log.info('Max value in the negative sampling table: {}'.format(max(self.table)))
 
-
+    def build_path_table_(self, walk_files):
+        """
+        """
+        log.info("contructing connected table!")
+        self.connected_path = {}
+        for file in walk_files:
+            with open(file, 'r') as f:
+                for l in f:
+                    words = [int(word) for word in l.strip().split()]
+                    for fir in words:
+                        for sec in words:
+                            if fir not in self.connected_path:
+                                self.connected_path[fir] = {}
+                            if sec not in self.connected_path[fir]:
+                                self.connected_path[fir][sec] = 0
+                            self.connected_path[fir][sec] += 1
+        for fir in self.connected_path:
+            conn_path = sorted(self.connected_path[fir].items(), key=lambda x:x[1])
+            max_count = max([ x[1] for x in conn_path])
+            for sec in self.connected_path[fir]:
+                self.connected_path[fir][sec] = (self.connected_path[fir][sec]/float(max_count), float(max_count))
 
     def save(self, file_name, path='data'):
         if not exists(path):
